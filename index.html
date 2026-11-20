@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#e7e0d4">
+  <title>MVP Approval</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231c1916'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='Georgia' font-size='16' fill='%23f3eadc'%3EM%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css?v=11">
+</head>
+<body data-view="mails">
+  <div class="app">
+    <header class="top">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">M</span>
+        <p class="brand-name">MVP Approval</p>
+      </div>
+      <div class="switch-stack">
+        <div class="view-switch" id="view-switch" role="tablist" aria-label="View">
+          <button type="button" data-action="set-view" data-view="mails" aria-selected="true"><span class="switch-title">Mails</span><span class="switch-hint">Email previews</span></button>
+          <button type="button" data-action="set-view" data-view="creatives" aria-selected="false"><span class="switch-title">Ad Creatives</span><span class="switch-hint">Images &amp; videos</span></button>
+        </div>
+        <div class="mail-source" id="mail-source" role="tablist" aria-label="Mail source">
+          <button type="button" data-action="channel" data-value="shopify" aria-selected="true">Shopify</button>
+          <button type="button" data-action="channel" data-value="omnisend" aria-selected="false">OmniSend</button>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button type="button" class="btn ink" data-action="add" data-channel="ads">+ Add</button>
+      </div>
+    </header>
+    <p class="banner" id="memory-banner" hidden>This browser keeps approvals only until the window is closed.</p>
+    <p class="busy" id="busy" hidden></p>
+
+    <div class="workspace">
+      <aside class="queue" aria-label="Liste">
+        <div class="stats" id="stats" role="group" aria-label="Filter by status"></div>
+        <div class="channel-filter" id="channel-filter" role="group" aria-label="Channel"></div>
+        <div class="queue-scroll" id="queue-scroll"></div>
+        <div class="queue-foot">
+          <button type="button" class="text-btn" data-action="copy">Copy summary</button>
+          <button type="button" class="text-btn" data-action="export">Save as file</button>
+        </div>
+      </aside>
+      <section class="stage-card" id="stage" aria-live="polite"></section>
+    </div>
+  </div>
+
+  <div class="drop-overlay" id="drop-overlay" hidden>
+    <p class="drop-title">Drop files here</p>
+    <div class="drop-zones">
+      <div class="drop-zone" data-drop="ads">Drop images &amp; videos</div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden role="status">
+    <span id="toast-text"></span>
+    <button type="button" id="toast-undo" data-action="undo" hidden>Undo</button>
+  </div>
+
+  <dialog id="lightbox" aria-label="Large view">
+    <button type="button" class="light-close" data-action="close-light">Close</button>
+    <img id="light-img" alt="">
+  </dialog>
+
+  <input id="file-input" type="file" accept="image/*,video/*,.mov,.m4v,.mp4,.webm" multiple hidden>
+  <noscript>MVP Approval needs JavaScript.</noscript>
+  <script src="app.js?v=11"></script>
+  <script src="mail.js?v=11"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "andy-approval",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "imapflow": "^1.1.1",
+    "mailparser": "^3.7.4"
+  }
+}
