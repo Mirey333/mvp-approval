@@ -364,9 +364,7 @@ function renderCreativeFoot() {
   const foot = document.querySelector(".queue-foot");
   if (!foot || foot.dataset.mode === "creatives") return;
   foot.dataset.mode = "creatives";
-  foot.innerHTML = `<button type="button" class="text-btn" data-action="copy">Copy summary</button>
-    <button type="button" class="text-btn" data-action="export">Save as file</button>
-    <p class="keys">F approve · B needs changes · ← → switch</p>`;
+  foot.innerHTML = "";
 }
 
 function render() {
@@ -613,66 +611,6 @@ async function removeItem() {
   render();
 }
 
-function protocolText() {
-  const date = new Date().toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" });
-  const lines = ["MVP Approval", date, ""];
-  [["ads", "Ad creatives"]].forEach(([channel, title]) => {
-    const items = state.items.filter((item) => item.channel === channel).sort((a, b) => a.createdAt - b.createdAt);
-    lines.push(title);
-    if (!items.length) {
-      lines.push("No creatives.");
-      lines.push("");
-      return;
-    }
-    items.forEach((item) => {
-      lines.push(`• ${item.name} (${LABEL[item.kind]}) — ${LABEL[item.status]}`);
-      if (item.note) lines.push(`  Needs changes: ${item.note}`);
-    });
-    lines.push("");
-  });
-  const open = state.items.filter((item) => item.status === "open").length;
-  const approved = state.items.filter((item) => item.status === "approved").length;
-  const changes = state.items.filter((item) => item.status === "changes").length;
-  lines.push(`Open: ${open} · Approved: ${approved} · Changes: ${changes}`);
-  return lines.join("\n");
-}
-
-async function copyProtocol() {
-  if (!state.items.length) {
-    toast("No creatives yet.", false);
-    return;
-  }
-  const text = protocolText();
-  try {
-    await navigator.clipboard.writeText(text);
-  } catch (err) {
-    const area = document.createElement("textarea");
-    area.value = text;
-    document.body.appendChild(area);
-    area.select();
-    document.execCommand("copy");
-    area.remove();
-  }
-  toast("Summary copied.", false);
-}
-
-function exportProtocol() {
-  if (!state.items.length) {
-    toast("No creatives yet.", false);
-    return;
-  }
-  const blob = new Blob(["\uFEFF" + protocolText()], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `mvp-approval-${new Date().toISOString().slice(0, 10)}.txt`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-  toast("Summary saved.", false);
-}
-
 function pickFiles(channel) {
   if (state.busy) return;
   state.pendingChannel = channel;
@@ -790,8 +728,6 @@ function bind() {
       render();
     }
     if (action === "delete-yes") removeItem();
-    if (action === "copy") copyProtocol();
-    if (action === "export") exportProtocol();
     if (action === "undo") undo();
     if (action === "zoom") zoom();
     if (action === "close-light") document.getElementById("lightbox").close();

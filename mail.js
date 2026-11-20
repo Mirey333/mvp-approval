@@ -254,8 +254,6 @@ function renderMailFoot() {
     : "Inbox not checked yet";
   const error = mailState.status?.error ? `<p class="sync-line">${mailEsc(mailState.status.error)}</p>` : "";
   foot.innerHTML = `
-    <button type="button" class="text-btn" data-action="sync">Check inbox</button>
-    <button type="button" class="text-btn" data-action="copy">Copy summary</button>
     <p class="sync-line">${sync}</p>
     ${error}`;
 }
@@ -397,66 +395,6 @@ async function undoMail() {
   renderMails();
 }
 
-function mailProtocol() {
-  const lines = ["MVP Approval", new Date().toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" }), ""];
-  for (const [channel, title] of [["shopify", "Shopify"], ["omnisend", "OmniSend"]]) {
-    const mails = mailState.mails.filter((mail) => mail.channel === channel);
-    if (!mails.length) continue;
-    lines.push(title);
-    mails.forEach((mail) => {
-      lines.push(`• ${mail.subject} — ${MAIL_LABEL[mail.status]}`);
-      if (mail.note) lines.push(`  Needs changes: ${mail.note}`);
-    });
-    lines.push("");
-  }
-  return lines.join("\n");
-}
-
-async function copyMailProtocol() {
-  if (!mailState.mails.length) {
-    mailToast("No mail yet.", false);
-    return;
-  }
-  const text = mailProtocol();
-  try {
-    await navigator.clipboard.writeText(text);
-  } catch {
-    const area = document.createElement("textarea");
-    area.value = text;
-    document.body.appendChild(area);
-    area.select();
-    document.execCommand("copy");
-    area.remove();
-  }
-  mailToast("Summary copied.", false);
-}
-
-function exportMailProtocol() {
-  if (!mailState.mails.length) {
-    mailToast("No mail yet.", false);
-    return;
-  }
-  const blob = new Blob(["\uFEFF" + mailProtocol()], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `mvp-approval-mail-${new Date().toISOString().slice(0, 10)}.txt`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-  mailToast("Summary saved.", false);
-}
-
-async function syncNow() {
-  mailToast("Checking inbox…", false);
-  const response = await fetch("/api/sync", { method: "POST" });
-  const payload = await response.json().catch(() => ({}));
-  if (payload.address) mailState.status = payload;
-  await loadMails();
-  mailToast(payload.ok ? "Inbox checked." : (payload.error || "Check failed."), false);
-}
-
 function bindMail() {
   document.body.addEventListener("click", (event) => {
     const button = event.target.closest("[data-action]");
@@ -500,9 +438,6 @@ function bindMail() {
       sessionStorage.setItem("andy-mail-device", mailState.device);
       renderMails();
     }
-    if (action === "sync") syncNow();
-    if (action === "copy") copyMailProtocol();
-    if (action === "export") exportMailProtocol();
     if (action === "undo") undoMail();
     if (action === "copy-address") {
       const address = mailState.status?.address || "mvp.preview@gmail.com";

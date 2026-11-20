@@ -315,6 +315,8 @@ textarea:focus-visible,
   margin-top: 8px;
 }
 
+.queue-foot:empty { display: none; }
+
 .text-btn {
   border: none;
   background: none;
