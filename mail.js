@@ -196,7 +196,12 @@ function renderMailStage() {
     return;
   }
   const open = mailState.expanded;
+  const preview = String(mail.preview || "").trim();
   stage.innerHTML = `<div class="review mail-review${open ? " is-open" : ""}">
+      <div class="inbox-lines">
+        <p class="inbox-subject">${mailEsc(cleanSubject(mail.subject))}</p>
+        ${preview ? `<p class="inbox-preview">${mailEsc(preview)}</p>` : ""}
+      </div>
       <div class="mail-frame">
         <button type="button" class="mail-open" data-action="expand-mail" aria-expanded="${open ? "true" : "false"}"><span>${open ? "Close" : "Open"}</span></button>
         <iframe sandbox="allow-popups allow-popups-to-escape-sandbox" title="${mailEsc(mail.subject)}" src="/api/mails/${mail.id}/html"></iframe>

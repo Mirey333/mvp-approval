@@ -86,6 +86,40 @@ function cleanSubject(subject) {
   return String(subject || "").replace(/^\[(?:test|preview)\]\s*/i, "").trim() || "(No subject)";
 }
 
+function decodeEntities(value) {
+  return String(value || "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16)));
+}
+
+function previewFromHtml(html) {
+  const pattern = /<div\b[^>]*\bstyle="[^"]*display:\s*none[^"]*"[^>]*>([\s\S]*?)<\/div>/gi;
+  let match;
+  while ((match = pattern.exec(html))) {
+    const text = decodeEntities(match[1]).replace(/[\u00ad\u200b-\u200d\ufeff]/g, "").replace(/\s+/g, " ").trim();
+    if (/[A-Za-z0-9]/.test(text)) return text.slice(0, 220);
+  }
+  return "";
+}
+
+function previewFor(mail) {
+  if (mail.preview) return mail.preview;
+  try {
+    const html = fs.readFileSync(path.join(htmlDir, `${mail.id}.html`), "utf8");
+    mail.preview = previewFromHtml(html);
+  } catch {
+    mail.preview = "";
+  }
+  return mail.preview;
+}
+
 function andyNote(mail) {
   const source = mail.channel === "omnisend" ? "OmniSend" : "Shopify";
   const title = cleanSubject(mail.subject);
@@ -165,6 +199,7 @@ function publicMail(mail) {
     from: mail.from,
     fromAddress: mail.fromAddress,
     subject: mail.subject,
+    preview: previewFor(mail),
     date: mail.date,
     channel: mail.channel,
     status: mail.status,
@@ -215,12 +250,14 @@ async function importMailbox(client, mailbox) {
       }
       const subject = parsed.subject || "(No subject)";
       if (!store.mails.some((mail) => mail.id === id)) {
-        fs.writeFileSync(path.join(htmlDir, `${id}.html`), documentHtml(parsed));
+        const html = documentHtml(parsed);
+        fs.writeFileSync(path.join(htmlDir, `${id}.html`), html);
         store.mails.push({
           id,
           from: parsed.from?.text || fromAddress,
           fromAddress,
           subject,
+          preview: previewFromHtml(html),
           date: (parsed.date || new Date()).toISOString(),
           channel: channelOf(fromAddress, subject),
           status: "open",
