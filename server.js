@@ -197,7 +197,7 @@ async function importMailbox(client, mailbox) {
   const lock = await client.getMailboxLock(mailbox);
   try {
     const since = new Date(Date.now() - 1000 * 60 * 60 * 24 * 45);
-    const uids = await client.search({ since });
+    const uids = await client.search({ since }, { uid: true });
     const list = Array.isArray(uids) ? uids : [];
     const seen = new Set();
     if (!list.length) return { added: 0, seen };
@@ -265,7 +265,7 @@ async function hideInGmail(id) {
       try {
         lock = await client.getMailboxLock(mailbox);
         const since = new Date(Date.now() - 1000 * 60 * 60 * 24 * 45);
-        const uids = await client.search({ since });
+        const uids = await client.search({ since }, { uid: true });
         const list = Array.isArray(uids) ? uids.slice(-40) : [];
         const hits = [];
         if (list.length) {
