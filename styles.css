@@ -907,7 +907,8 @@ textarea.is-error {
   color: rgba(247, 243, 236, 0.78);
 }
 
-.mail-source { display: none; }
+.mail-source,
+.ad-source { display: none; }
 
 body[data-source-open="true"] .mail-source {
   display: grid;
@@ -919,18 +920,31 @@ body[data-source-open="true"] .mail-source {
   gap: 8px;
 }
 
-.mail-source button {
+body[data-ad-open="true"] .ad-source {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: calc(50% - 4px);
+  margin-left: auto;
+  margin-right: 14px;
+  padding: 0 14px 2px 0;
+  border-right: 3px solid var(--ink);
+  gap: 8px;
+}
+
+.mail-source button,
+.ad-source button {
   min-height: 40px;
   border: none;
   border-radius: 12px;
   background: transparent;
   color: var(--muted);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   box-shadow: none;
 }
 
-.mail-source button.is-on {
+.mail-source button.is-on,
+.ad-source button.is-on {
   background: #fff;
   color: var(--ink);
   box-shadow: inset 0 0 0 1.5px #cfc6b8;

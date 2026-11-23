@@ -357,8 +357,13 @@ function bindMail() {
     const action = button.dataset.action;
     if (action === "set-view") {
       document.body.dataset.view = button.dataset.view;
-      if (button.dataset.view === "mails") document.body.dataset.sourceOpen = "true";
-      else delete document.body.dataset.sourceOpen;
+      if (button.dataset.view === "mails") {
+        document.body.dataset.sourceOpen = "true";
+        delete document.body.dataset.adOpen;
+      } else {
+        delete document.body.dataset.sourceOpen;
+        document.body.dataset.adOpen = "true";
+      }
       markViewButtons();
       if (button.dataset.view === "mails") renderMails();
       return;

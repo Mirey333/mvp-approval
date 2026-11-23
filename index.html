@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#e7e0d4">
   <title>MVP Approval</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231c1916'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='Georgia' font-size='16' fill='%23f3eadc'%3EM%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=13">
+  <link rel="stylesheet" href="styles.css?v=14">
 </head>
 <body data-view="mails" data-source-open="true">
   <div class="app">
@@ -25,9 +25,13 @@
           <button type="button" data-action="channel" data-value="shopify" aria-selected="true">Shopify</button>
           <button type="button" data-action="channel" data-value="omnisend" aria-selected="false">OmniSend</button>
         </div>
+        <div class="ad-source" id="ad-source" role="tablist" aria-label="Ad platform">
+          <button type="button" data-action="channel" data-value="facebook" aria-selected="true">Facebook / Insta</button>
+          <button type="button" data-action="channel" data-value="google" aria-selected="false">Google</button>
+        </div>
       </div>
       <div class="top-actions">
-        <button type="button" class="btn ink" data-action="add" data-channel="ads">+ Add</button>
+        <button type="button" class="btn ink" data-action="add" data-channel="facebook">+ Add</button>
       </div>
     </header>
     <p class="banner" id="memory-banner" hidden>This browser keeps approvals only until the window is closed.</p>
@@ -47,7 +51,7 @@
   <div class="drop-overlay" id="drop-overlay" hidden>
     <p class="drop-title">Drop files here</p>
     <div class="drop-zones">
-      <div class="drop-zone" data-drop="ads">Drop images &amp; videos</div>
+      <div class="drop-zone" data-drop="facebook">Drop images &amp; videos</div>
     </div>
   </div>
 
@@ -63,7 +67,7 @@
 
   <input id="file-input" type="file" accept="image/*,video/*,.mov,.m4v,.mp4,.webm" multiple hidden>
   <noscript>MVP Approval needs JavaScript.</noscript>
-  <script src="app.js?v=13"></script>
-  <script src="mail.js?v=13"></script>
+  <script src="app.js?v=14"></script>
+  <script src="mail.js?v=14"></script>
 </body>
 </html>

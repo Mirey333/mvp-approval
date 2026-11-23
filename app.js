@@ -24,12 +24,12 @@ const state = {
   drafts: {},
   selectedId: null,
   statusFilter: "all",
-  channelFilter: "all",
+  channelFilter: "facebook",
   composer: false,
   noteError: false,
   focusNote: false,
   confirmDelete: false,
-  pendingChannel: "ads",
+  pendingChannel: "facebook",
   ensureVisible: false,
   ready: false,
   busy: false,
@@ -128,8 +128,14 @@ function current() {
   return state.items.find((item) => item.id === state.selectedId) || null;
 }
 
+function platformOf(item) {
+  if (item.channel === "google") return "google";
+  if (item.channel === "facebook" || item.channel === "ads") return "facebook";
+  return "";
+}
+
 function channelOk(item) {
-  return item.channel !== "omnisend";
+  return platformOf(item) === state.channelFilter;
 }
 
 function visibleItems() {
@@ -170,6 +176,18 @@ function renderChannelFilter() {
   const el = document.getElementById("channel-filter");
   el.hidden = true;
   el.innerHTML = "";
+  document.querySelectorAll("#ad-source [data-action='channel']").forEach((button) => {
+    const on = button.dataset.value === state.channelFilter;
+    button.classList.toggle("is-on", on);
+    button.setAttribute("aria-selected", on ? "true" : "false");
+  });
+  const channel = state.channelFilter === "google" ? "google" : "facebook";
+  document.querySelectorAll("[data-action='add']").forEach((button) => {
+    button.dataset.channel = channel;
+  });
+  document.querySelectorAll("[data-drop]").forEach((zone) => {
+    zone.dataset.drop = channel;
+  });
 }
 
 function queueItemHtml(item) {
@@ -210,7 +228,7 @@ function renderQueue() {
 
 function landingHtml() {
   return `<div class="landing landing-plain">
-    <button type="button" class="landing-zone" data-action="add" data-channel="ads"><span class="plus" aria-hidden="true">+</span><strong>Add</strong></button>
+    <button type="button" class="landing-zone" data-action="add" data-channel="facebook"><span class="plus" aria-hidden="true">+</span><strong>Add</strong></button>
   </div>`;
 }
 
@@ -271,11 +289,11 @@ function renderStage() {
     stage.innerHTML = `<div class="done"><p>Loading creatives…</p></div>`;
     return;
   }
-  if (!state.items.length) {
+  const list = visibleItems();
+  if (!list.length) {
     stage.innerHTML = landingHtml();
     return;
   }
-  const list = visibleItems();
   const item = current();
   const showItem = item && list.some((entry) => entry.id === item.id);
   if (!showItem) {
@@ -312,7 +330,7 @@ function renderCreativeFoot() {
 
 function render() {
   if (!creativeView()) return;
-  document.body.dataset.empty = state.items.length ? "false" : "true";
+  document.body.dataset.empty = visibleItems().length ? "false" : "true";
   renderStats();
   renderChannelFilter();
   renderQueue();
@@ -362,7 +380,6 @@ function setChannelFilter(value) {
 
 function showAll() {
   state.statusFilter = "all";
-  state.channelFilter = "all";
   const first = visibleItems()[0];
   if (first) select(first.id);
   else render();
@@ -603,7 +620,7 @@ async function ingest(fileList, channel) {
   }
   setBusy("");
   if (added.length) {
-    state.statusFilter = "open";
+    state.statusFilter = "all";
     state.channelFilter = channel;
     state.selectedId = added[0].id;
     state.drafts[added[0].id] = "";
@@ -646,8 +663,13 @@ function bind() {
     const action = button.dataset.action;
     if (action === "set-view") {
       document.body.dataset.view = button.dataset.view;
-      if (button.dataset.view === "mails") document.body.dataset.sourceOpen = "true";
-      else delete document.body.dataset.sourceOpen;
+      if (button.dataset.view === "mails") {
+        document.body.dataset.sourceOpen = "true";
+        delete document.body.dataset.adOpen;
+      } else {
+        delete document.body.dataset.sourceOpen;
+        document.body.dataset.adOpen = "true";
+      }
       if (button.dataset.view === "creatives") render();
       return;
     }
