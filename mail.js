@@ -11,7 +11,6 @@ const mailState = {
   drafts: {},
   noteError: false,
   focusNote: false,
-  device: sessionStorage.getItem("andy-mail-device") || "desktop",
   expanded: false,
   undo: null,
   ready: false,
@@ -145,14 +144,6 @@ function emptyMailHtml() {
   return `<div class="done"><h2>No ${source} mail</h2></div>`;
 }
 
-function deviceToggle() {
-  const device = mailState.device === "mobile" ? "mobile" : "desktop";
-  return `<div class="mail-toolbar" role="group" aria-label="Width">
-      <button type="button" class="chip${device === "desktop" ? " is-on" : ""}" data-action="device" data-value="desktop">Desktop</button>
-      <button type="button" class="chip${device === "mobile" ? " is-on" : ""}" data-action="device" data-value="mobile">Phone</button>
-    </div>`;
-}
-
 function mailDock(mail) {
   const draft = mailState.drafts[mail.id] != null ? mailState.drafts[mail.id] : (mail.note || "");
   const showComposer = mailState.composer || mail.status === "changes";
@@ -204,14 +195,13 @@ function renderMailStage() {
     stage.innerHTML = emptyMailHtml();
     return;
   }
-  const device = mailState.device === "mobile" ? "mobile" : "desktop";
   const open = mailState.expanded;
   stage.innerHTML = `<div class="review mail-review${open ? " is-open" : ""}">
-      <div class="mail-frame${device === "mobile" ? " is-mobile" : ""}">
+      <div class="mail-frame">
         <button type="button" class="mail-open" data-action="expand-mail" aria-expanded="${open ? "true" : "false"}"><span>${open ? "Close" : "Open"}</span></button>
         <iframe sandbox="allow-popups allow-popups-to-escape-sandbox" title="${mailEsc(mail.subject)}" src="/api/mails/${mail.id}/html"></iframe>
       </div>
-      <div class="dock">${deviceToggle()}${mailDock(mail)}</div>
+      <div class="dock">${mailDock(mail)}</div>
     </div>`;
   if (mailState.focusNote) {
     mailState.focusNote = false;
@@ -407,11 +397,6 @@ function bindMail() {
     if (action === "reopen") reopenMail();
     if (action === "prev") moveMail(-1);
     if (action === "next") moveMail(1);
-    if (action === "device") {
-      mailState.device = button.dataset.value;
-      sessionStorage.setItem("andy-mail-device", mailState.device);
-      renderMails();
-    }
     if (action === "expand-mail") {
       setMailOpen(!mailState.expanded);
       return;
