@@ -197,8 +197,14 @@ function renderMailStage() {
   }
   const open = mailState.expanded;
   const preview = String(mail.preview || "").trim();
+  const verdict = mail.status === "approved"
+    ? `<p class="verdict approved">Approved</p>`
+    : mail.status === "changes"
+      ? `<p class="verdict changes">Needs changes</p>`
+      : "";
   stage.innerHTML = `<div class="review mail-review${open ? " is-open" : ""}">
       <div class="inbox-lines">
+        ${verdict}
         <p class="inbox-subject">${mailEsc(cleanSubject(mail.subject))}</p>
         ${preview ? `<p class="inbox-preview">${mailEsc(preview)}</p>` : ""}
       </div>

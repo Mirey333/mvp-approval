@@ -21,6 +21,8 @@ const andyEmail = (env.ANDY_EMAIL || "").trim();
 const publicUrl = (env.PUBLIC_URL || "https://mvp-approval.onrender.com").replace(/\/$/, "");
 const notifyLabel = "MVP-Notified";
 const removedLabel = "MVP-Removed";
+const approvedLabel = "MVP-Approved";
+const changesLabel = "MVP-Changes";
 const toldAndy = new Set();
 let deleting = false;
 
@@ -249,6 +251,7 @@ async function importMailbox(client, mailbox) {
         continue;
       }
       const subject = parsed.subject || "(No subject)";
+      const labeled = hasLabel(message.labels, approvedLabel) ? "approved" : hasLabel(message.labels, changesLabel) ? "changes" : "open";
       if (!store.mails.some((mail) => mail.id === id)) {
         const html = documentHtml(parsed);
         fs.writeFileSync(path.join(htmlDir, `${id}.html`), html);
@@ -260,13 +263,17 @@ async function importMailbox(client, mailbox) {
           preview: previewFromHtml(html),
           date: (parsed.date || new Date()).toISOString(),
           channel: channelOf(fromAddress, subject),
-          status: "open",
+          status: labeled,
           note: "",
-          decidedAt: null,
+          decidedAt: labeled === "open" ? null : new Date().toISOString(),
         });
         added += 1;
       }
       const saved = store.mails.find((mail) => mail.id === id);
+      if (saved && saved.status === "open" && labeled !== "open") {
+        saved.status = labeled;
+        saved.decidedAt = new Date().toISOString();
+      }
       if (saved && !hasLabel(message.labels, notifyLabel)) pending.push({ uid: message.uid, mail: saved });
     }
     for (const item of pending) {
@@ -280,6 +287,47 @@ async function importMailbox(client, mailbox) {
     return { added, seen };
   } finally {
     lock.release();
+  }
+}
+
+async function rememberDecision(id, status) {
+  if (!configured) return;
+  const add = status === "approved" ? approvedLabel : status === "changes" ? changesLabel : null;
+  const remove = [];
+  if (status !== "approved") remove.push(approvedLabel);
+  if (status !== "changes") remove.push(changesLabel);
+  const client = new ImapFlow({
+    host: "imap.gmail.com",
+    port: 993,
+    secure: true,
+    auth: { user, pass },
+    logger: false,
+    connectionTimeout: 20000,
+    greetingTimeout: 20000,
+  });
+  try {
+    await client.connect();
+    const lock = await client.getMailboxLock("INBOX");
+    try {
+      const since = new Date(Date.now() - 1000 * 60 * 60 * 24 * 45);
+      const uids = await client.search({ since }, { uid: true });
+      const list = Array.isArray(uids) ? uids : [];
+      const hits = [];
+      if (list.length) {
+        for await (const message of client.fetch(list, { source: true, uid: true }, { uid: true })) {
+          const parsed = await simpleParser(message.source);
+          if (mailId(parsed) === id) hits.push(message.uid);
+        }
+      }
+      for (const uid of hits) {
+        if (remove.length) await client.messageFlagsRemove(uid, remove, { uid: true, useLabels: true });
+        if (add) await client.messageFlagsAdd(uid, [add], { uid: true, useLabels: true });
+      }
+    } finally {
+      lock.release();
+    }
+  } finally {
+    try { await client.logout(); } catch { /* Verbindung ist schon zu. */ }
   }
 }
 
@@ -536,6 +584,11 @@ const server = http.createServer(async (req, res) => {
       }
       if (["omnisend", "shopify", "unknown"].includes(body.channel)) mail.channel = body.channel;
       writeState();
+      try {
+        await rememberDecision(mail.id, mail.status);
+      } catch {
+        console.error("Could not store the decision in Gmail.");
+      }
       send(res, 200, JSON.stringify({ mail: publicMail(mail) }));
       return;
     }
