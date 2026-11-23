@@ -23,7 +23,7 @@ const state = {
   urls: new Map(),
   drafts: {},
   selectedId: null,
-  statusFilter: "open",
+  statusFilter: "all",
   channelFilter: "all",
   composer: false,
   noteError: false,
@@ -119,12 +119,6 @@ function prettyName(filename) {
   return base || filename;
 }
 
-function formatBytes(bytes) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  return `${(bytes / (1024 * 1024)).toLocaleString("en-US", { maximumFractionDigits: 1 })} MB`;
-}
-
 function urlFor(item) {
   if (!state.urls.has(item.id)) state.urls.set(item.id, URL.createObjectURL(item.blob));
   return state.urls.get(item.id);
@@ -168,15 +162,8 @@ function setBusy(label) {
 }
 
 function renderStats() {
-  const counts = { all: state.items.length, open: 0, approved: 0, changes: 0 };
-  state.items.forEach((item) => { counts[item.status] += 1; });
-  const filters = [["all", "All"], ["open", "Open"], ["approved", "Approved"], ["changes", "Changes"]]
-    .filter(([status]) => status === "all" || status === state.statusFilter || counts[status] > 0);
-  document.getElementById("stats").innerHTML = filters.map(([status, label]) => {
-    const on = state.statusFilter === status;
-    return `<button type="button" class="stat${on ? " is-on" : ""}" aria-pressed="${on}" data-action="filter" data-value="${status}"><strong>${counts[status]}</strong><span>${label}</span></button>`;
-  }).join("");
-  document.title = counts.open ? `MVP Approval · ${counts.open} open` : "MVP Approval";
+  document.getElementById("stats").innerHTML = "";
+  document.title = "MVP Approval";
 }
 
 function renderChannelFilter() {
@@ -194,7 +181,6 @@ function queueItemHtml(item) {
     <span class="thumb">${media}</span>
     <span class="q-copy">
       <span class="q-name">${esc(item.name)}</span>
-      <span class="q-meta"><span class="dot ${item.status}"></span>${LABEL[item.kind]} · ${LABEL[item.status]}</span>
     </span>
   </button>`;
 }
@@ -202,13 +188,12 @@ function queueItemHtml(item) {
 function renderQueue() {
   const sc = document.getElementById("queue-scroll");
   const items = visibleItems();
+  document.body.dataset.queue = items.length > 1 ? "many" : "one";
   const signature = items.map((item) => `${item.id}:${item.status}:${item.name}:${item.channel}`).join("|");
   if (sc.dataset.signature !== signature) {
     const prevTop = sc.scrollTop;
     sc.dataset.signature = signature;
-    sc.innerHTML = items.length
-      ? items.map(queueItemHtml).join("")
-      : `<p class="queue-empty">No creatives in this view.</p>`;
+    sc.innerHTML = items.length ? items.map(queueItemHtml).join("") : "";
     sc.scrollTop = prevTop;
   }
   sc.querySelectorAll(".q-item").forEach((el) => {
@@ -224,36 +209,13 @@ function renderQueue() {
 }
 
 function landingHtml() {
-  return `<div class="landing">
-    <div>
-      <p class="eyebrow">Ad Creatives</p>
-      <h2>Add images &amp; videos</h2>
-      <p>Drop ad images and videos here. Then one click: approve, or mark what needs to change. Everything stays in this browser.</p>
-    </div>
-    <div class="landing-zones">
-      <button type="button" class="landing-zone" data-action="add" data-channel="ads"><span class="plus" aria-hidden="true">+</span><strong>Add</strong><span>Images &amp; videos</span></button>
-    </div>
+  return `<div class="landing landing-plain">
+    <button type="button" class="landing-zone" data-action="add" data-channel="ads"><span class="plus" aria-hidden="true">+</span><strong>Add</strong></button>
   </div>`;
 }
 
 function doneHtml() {
-  const openItems = state.items.filter((item) => item.status === "open");
-  let title = "No creatives in this view.";
-  let text = "Switch the view to see everything.";
-  if (state.statusFilter === "open" && openItems.length === 0) {
-    title = "Nothing left open.";
-    text = "Everything is approved or needs changes.";
-  } else if (state.statusFilter === "open") {
-    title = "Nothing open in this channel.";
-    text = "There are still open creatives in the other view.";
-  } else if (state.statusFilter === "changes") {
-    title = "Nothing needs changes.";
-    text = "Nothing is flagged in this view.";
-  } else if (state.statusFilter === "approved") {
-    title = "Nothing approved yet.";
-    text = "Nothing is approved in this view.";
-  }
-  return `<div class="done"><p class="eyebrow">View</p><h2>${title}</h2><p>${text}</p><button type="button" class="btn ink" data-action="show-all">Show all</button></div>`;
+  return `<div class="done"><h2>Done</h2></div>`;
 }
 
 function mediaHtml(item) {
@@ -273,34 +235,19 @@ function dockHtml(item, list) {
   const draft = state.drafts[item.id] != null ? state.drafts[item.id] : (item.note || "");
   const showComposer = state.composer || item.status === "changes";
   const saveDisabled = !draft.trim() || (item.status === "changes" && !noteDirty(item));
-  const when = item.decidedAt && item.status !== "open"
-    ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(item.decidedAt)
-    : "";
   const composer = showComposer ? `<div class="composer">
-      <label for="note">What needs to change?</label>
-      <textarea id="note" maxlength="500" class="${state.noteError ? "is-error" : ""}" aria-invalid="${state.noteError ? "true" : "false"}" placeholder="A short note on what to change.">${esc(draft)}</textarea>
-      <div class="composer-foot">
-        <p class="error" id="note-error" ${state.noteError ? "" : "hidden"}>Add a short note on what to change.</p>
-        <p class="note-count" id="note-count">${draft.length} / 500</p>
-      </div>
-      <button type="button" class="btn save" id="save-changes" data-action="save-changes" ${saveDisabled ? "disabled" : ""}>${item.status === "changes" ? "Save changes" : "Save note"}</button>
-      <p class="hint">Ctrl+Enter saves</p>
+      <textarea id="note" maxlength="500" class="${state.noteError ? "is-error" : ""}" aria-invalid="${state.noteError ? "true" : "false"}" placeholder="What to change" aria-label="What to change">${esc(draft)}</textarea>
+      <button type="button" class="btn save" id="save-changes" data-action="save-changes" ${saveDisabled ? "disabled" : ""}>Save</button>
     </div>` : "";
   const tools = state.confirmDelete
-    ? `<div class="confirm"><span>Remove this creative?</span><button type="button" class="btn ink" data-action="delete-yes">Yes, remove</button><button type="button" class="text-btn" data-action="delete-no">Cancel</button></div>`
-    : `<div class="tools">
-        ${item.status !== "open" ? '<button type="button" class="text-btn" data-action="reopen">Reopen</button>' : ""}
-        <button type="button" class="text-btn" data-action="delete-ask">Remove</button>
-      </div>`;
-  return `<div>
-      <input id="item-name" class="name-input" maxlength="120" value="${esc(item.name)}" aria-label="Name" spellcheck="false" autocomplete="off">
-      <p class="sub"><span>${LABEL[item.kind]} · ${formatBytes(item.blob.size)}${when ? ` · ${esc(when)}` : ""}</span></p>
-    </div>
-    <div class="pager">
-      <button type="button" data-action="prev" ${idx > 0 ? "" : "disabled"}>Previous</button>
-      <span>${idx + 1} of ${list.length}</span>
-      <button type="button" data-action="next" ${idx >= 0 && idx < list.length - 1 ? "" : "disabled"}>Next</button>
-    </div>
+    ? `<div class="confirm"><span>Remove?</span><button type="button" class="btn ink" data-action="delete-yes">Remove</button><button type="button" class="text-btn" data-action="delete-no">Cancel</button></div>`
+    : `<div class="tools"><button type="button" class="text-btn" data-action="delete-ask">Remove</button></div>`;
+  const pager = list.length > 1 ? `<div class="pager">
+      <button type="button" data-action="prev" ${idx > 0 ? "" : "disabled"} aria-label="Previous">‹</button>
+      <span>${idx + 1} / ${list.length}</span>
+      <button type="button" data-action="next" ${idx >= 0 && idx < list.length - 1 ? "" : "disabled"} aria-label="Next">›</button>
+    </div>` : "";
+  return `${pager}
     <div class="actions">
       <button type="button" class="decide approve${item.status === "approved" ? " is-on" : ""}" data-action="approve" aria-pressed="${item.status === "approved"}" aria-keyshortcuts="F">${ICON.check} ${item.status === "approved" ? "Approved" : "Approve"}</button>
       <button type="button" class="decide changes${item.status === "changes" ? " is-on" : ""}" data-action="compose" aria-pressed="${item.status === "changes"}" aria-keyshortcuts="B">${ICON.flag} Needs changes</button>
@@ -312,7 +259,6 @@ function dockHtml(item, list) {
 function reviewHtml(item, list) {
   return `<div class="review" data-id="${esc(item.id)}">
     <div class="mat">
-      <span class="pill ${item.status}">${LABEL[item.status]}</span>
       ${mediaHtml(item)}
     </div>
     <div class="dock">${dockHtml(item, list)}</div>
@@ -340,9 +286,6 @@ function renderStage() {
   if (!review || review.dataset.id !== item.id) {
     stage.innerHTML = reviewHtml(item, list);
   } else {
-    const pill = review.querySelector(".pill");
-    pill.className = `pill ${item.status}`;
-    pill.textContent = LABEL[item.status];
     review.querySelector(".dock").innerHTML = dockHtml(item, list);
   }
   if (state.focusNote) {
@@ -369,6 +312,7 @@ function renderCreativeFoot() {
 
 function render() {
   if (!creativeView()) return;
+  document.body.dataset.empty = state.items.length ? "false" : "true";
   renderStats();
   renderChannelFilter();
   renderQueue();

@@ -7,9 +7,9 @@
   <meta name="theme-color" content="#e7e0d4">
   <title>MVP Approval</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231c1916'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='Georgia' font-size='16' fill='%23f3eadc'%3EM%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=12">
+  <link rel="stylesheet" href="styles.css?v=13">
 </head>
-<body data-view="mails">
+<body data-view="mails" data-source-open="true">
   <div class="app">
     <header class="top">
       <div class="brand">
@@ -18,8 +18,8 @@
       </div>
       <div class="switch-stack">
         <div class="view-switch" id="view-switch" role="tablist" aria-label="View">
-          <button type="button" data-action="set-view" data-view="mails" aria-selected="true"><span class="switch-title">Mails</span><span class="switch-hint">Email previews</span></button>
-          <button type="button" data-action="set-view" data-view="creatives" aria-selected="false"><span class="switch-title">Ad Creatives</span><span class="switch-hint">Images &amp; videos</span></button>
+          <button type="button" data-action="set-view" data-view="mails" aria-selected="true"><span class="switch-title">Mails</span></button>
+          <button type="button" data-action="set-view" data-view="creatives" aria-selected="false"><span class="switch-title">Ad Creatives</span></button>
         </div>
         <div class="mail-source" id="mail-source" role="tablist" aria-label="Mail source">
           <button type="button" data-action="channel" data-value="shopify" aria-selected="true">Shopify</button>
@@ -63,7 +63,7 @@
 
   <input id="file-input" type="file" accept="image/*,video/*,.mov,.m4v,.mp4,.webm" multiple hidden>
   <noscript>MVP Approval needs JavaScript.</noscript>
-  <script src="app.js?v=12"></script>
-  <script src="mail.js?v=12"></script>
+  <script src="app.js?v=13"></script>
+  <script src="mail.js?v=13"></script>
 </body>
 </html>
