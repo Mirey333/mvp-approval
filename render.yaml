@@ -12,3 +12,5 @@ services:
         sync: false
       - key: GMAIL_APP_PASSWORD
         sync: false
+      - key: ANDY_EMAIL
+        sync: false

@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
+import nodemailer from "nodemailer";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(root, "data");
@@ -16,6 +17,12 @@ const port = Number(env.PORT || 8756);
 const user = (env.GMAIL_USER || "").trim();
 const pass = (env.GMAIL_APP_PASSWORD || "").replace(/\s+/g, "");
 const configured = Boolean(user && pass);
+const andyEmail = (env.ANDY_EMAIL || "").trim();
+const publicUrl = (env.PUBLIC_URL || "https://mvp-approval.onrender.com").replace(/\/$/, "");
+const notifyLabel = "MVP-Notified";
+const removedLabel = "MVP-Removed";
+const toldAndy = new Set();
+let deleting = false;
 
 fs.mkdirSync(htmlDir, { recursive: true });
 
@@ -34,7 +41,7 @@ function loadEnv(file) {
       out[trimmed.slice(0, eq).trim()] = trimmed.slice(eq + 1).trim();
     }
   }
-  for (const key of ["GMAIL_USER", "GMAIL_APP_PASSWORD", "PORT"]) {
+  for (const key of ["GMAIL_USER", "GMAIL_APP_PASSWORD", "PORT", "ANDY_EMAIL", "PUBLIC_URL"]) {
     if (process.env[key]) out[key] = process.env[key];
   }
   return out;
@@ -44,9 +51,10 @@ function readState() {
   try {
     const parsed = JSON.parse(fs.readFileSync(stateFile, "utf8"));
     if (!Array.isArray(parsed.mails)) parsed.mails = [];
+    if (!Array.isArray(parsed.removed)) parsed.removed = [];
     return parsed;
   } catch {
-    return { mails: [], lastSync: null, error: null };
+    return { mails: [], removed: [], lastSync: null, error: null };
   }
 }
 
@@ -72,6 +80,56 @@ function channelOf(fromAddress, subject) {
   if (/\[\s*preview\s*\]/i.test(sub)) return "omnisend";
   if (/\[\s*test\s*\]/i.test(sub)) return "shopify";
   return "unknown";
+}
+
+function cleanSubject(subject) {
+  return String(subject || "").replace(/^\[(?:test|preview)\]\s*/i, "").trim() || "(No subject)";
+}
+
+function andyNote(mail) {
+  const source = mail.channel === "omnisend" ? "OmniSend" : "Shopify";
+  const title = cleanSubject(mail.subject);
+  return {
+    subject: `New preview to approve: ${title}`,
+    text: [
+      "There's a new email preview waiting for you.",
+      "",
+      `${source}: ${title}`,
+      "",
+      publicUrl,
+    ].join("\n"),
+  };
+}
+
+function hasLabel(labels, name) {
+  for (const label of labels || []) {
+    if (String(label).toLowerCase() === name.toLowerCase()) return true;
+  }
+  return false;
+}
+
+async function tellAndy(mail) {
+  if (!andyEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(andyEmail)) return false;
+  if (mail.channel !== "shopify" && mail.channel !== "omnisend") return false;
+  if (toldAndy.has(mail.id)) return true;
+  const age = Date.now() - new Date(mail.date).getTime();
+  if (!Number.isFinite(age) || age > 1000 * 60 * 60 * 24 * 3) return false;
+  const note = andyNote(mail);
+  const transport = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: { user, pass },
+  });
+  await transport.sendMail({
+    from: `"MVP Approval" <${user}>`,
+    to: andyEmail,
+    subject: note.subject,
+    text: note.text,
+  });
+  toldAndy.add(mail.id);
+  console.log(`Told Andy about a new preview: ${note.subject}`);
+  return true;
 }
 
 function escapeHtml(value) {
@@ -143,26 +201,42 @@ async function importMailbox(client, mailbox) {
     const list = Array.isArray(uids) ? uids.slice(-40) : [];
     if (!list.length) return 0;
     let added = 0;
-    for await (const message of client.fetch(list, { source: true, uid: true }, { uid: true })) {
+    const pending = [];
+    for await (const message of client.fetch(list, { source: true, uid: true, labels: true }, { uid: true })) {
       const parsed = await simpleParser(message.source);
       const id = mailId(parsed);
-      if (store.mails.some((mail) => mail.id === id)) continue;
       const fromAddress = parsed.from?.value?.[0]?.address || "";
       if (isAccountMail(fromAddress)) continue;
+      if (store.removed.includes(id) || hasLabel(message.labels, removedLabel)) {
+        if (!store.removed.includes(id)) store.removed.push(id);
+        continue;
+      }
       const subject = parsed.subject || "(No subject)";
-      fs.writeFileSync(path.join(htmlDir, `${id}.html`), documentHtml(parsed));
-      store.mails.push({
-        id,
-        from: parsed.from?.text || fromAddress,
-        fromAddress,
-        subject,
-        date: (parsed.date || new Date()).toISOString(),
-        channel: channelOf(fromAddress, subject),
-        status: "open",
-        note: "",
-        decidedAt: null,
-      });
-      added += 1;
+      if (!store.mails.some((mail) => mail.id === id)) {
+        fs.writeFileSync(path.join(htmlDir, `${id}.html`), documentHtml(parsed));
+        store.mails.push({
+          id,
+          from: parsed.from?.text || fromAddress,
+          fromAddress,
+          subject,
+          date: (parsed.date || new Date()).toISOString(),
+          channel: channelOf(fromAddress, subject),
+          status: "open",
+          note: "",
+          decidedAt: null,
+        });
+        added += 1;
+      }
+      const saved = store.mails.find((mail) => mail.id === id);
+      if (saved && !hasLabel(message.labels, notifyLabel)) pending.push({ uid: message.uid, mail: saved });
+    }
+    for (const item of pending) {
+      try {
+        const sent = await tellAndy(item.mail);
+        if (sent) await client.messageFlagsAdd(item.uid, [notifyLabel], { uid: true, useLabels: true });
+      } catch {
+        console.error("Could not mail Andy about a new preview.");
+      }
     }
     return added;
   } finally {
@@ -170,8 +244,70 @@ async function importMailbox(client, mailbox) {
   }
 }
 
+async function hideInGmail(id) {
+  if (!configured) return;
+  const client = new ImapFlow({
+    host: "imap.gmail.com",
+    port: 993,
+    secure: true,
+    auth: { user, pass },
+    logger: false,
+    connectionTimeout: 20000,
+    greetingTimeout: 20000,
+  });
+  try {
+    await client.connect();
+    const boxes = await mailboxPaths(client);
+    for (const mailbox of boxes) {
+      let lock;
+      try {
+        lock = await client.getMailboxLock(mailbox);
+        const since = new Date(Date.now() - 1000 * 60 * 60 * 24 * 45);
+        const uids = await client.search({ since });
+        const list = Array.isArray(uids) ? uids.slice(-40) : [];
+        const hits = [];
+        if (list.length) {
+          for await (const message of client.fetch(list, { source: true, uid: true }, { uid: true })) {
+            const parsed = await simpleParser(message.source);
+            if (mailId(parsed) === id) hits.push(message.uid);
+          }
+        }
+        for (const uid of hits) {
+          await client.messageFlagsAdd(uid, [removedLabel], { uid: true, useLabels: true });
+        }
+      } catch (error) {
+        if (mailbox === "INBOX") throw error;
+      } finally {
+        if (lock) lock.release();
+      }
+    }
+  } finally {
+    try { await client.logout(); } catch { /* Verbindung ist schon zu. */ }
+  }
+}
+
+async function removeMail(id) {
+  deleting = true;
+  try {
+    if (syncing && syncWait) await syncWait;
+    try {
+      await hideInGmail(id);
+    } catch {
+      console.error("Could not mark the mail in Gmail.");
+    }
+    if (!store.removed.includes(id)) store.removed.push(id);
+    store.mails = store.mails.filter((mail) => mail.id !== id);
+    const file = path.join(htmlDir, `${id}.html`);
+    if (fs.existsSync(file)) fs.unlinkSync(file);
+    writeState();
+  } finally {
+    deleting = false;
+  }
+}
+
 async function syncMailbox() {
   if (!configured) return { ok: false, error: "Inbox is not set up yet." };
+  if (deleting) return { ok: true, added: 0 };
   if (syncing) return syncWait;
   syncing = true;
   syncWait = (async () => {
@@ -316,6 +452,17 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     const decisionMatch = url.pathname.match(/^\/api\/mails\/([a-f0-9]{20})$/);
+    if (decisionMatch && req.method === "DELETE") {
+      const id = decisionMatch[1];
+      const known = store.mails.some((entry) => entry.id === id) || store.removed.includes(id);
+      if (!known) {
+        send(res, 404, JSON.stringify({ error: "Mail not found." }));
+        return;
+      }
+      await removeMail(id);
+      send(res, 200, JSON.stringify({ ok: true }));
+      return;
+    }
     if (decisionMatch && req.method === "POST") {
       const mail = store.mails.find((entry) => entry.id === decisionMatch[1]);
       if (!mail) {
