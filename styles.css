@@ -992,6 +992,87 @@ body[data-view="creatives"][data-empty="true"] .top-actions { display: none; }
 
 .mail-frame.is-mobile iframe { width: min(100%, 390px); }
 
+.mail-open {
+  display: none;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.mail-open span {
+  background: rgba(28, 25, 22, 0.88);
+  border-radius: 999px;
+  padding: 7px 14px;
+}
+
+.mail-review:not(.is-open) .mail-open {
+  position: absolute;
+  inset: 12px 16px 16px;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 0 10px;
+}
+
+.mail-frame.is-mobile .mail-open { display: flex; }
+
+.mail-review:not(.is-open) .mail-frame.is-mobile iframe { pointer-events: none; }
+
+.mail-review.is-open {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  width: 100%;
+  height: 100dvh;
+  background: #111;
+}
+
+.mail-review.is-open .dock { display: none; }
+
+.mail-review.is-open .mail-frame {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  background: #111;
+}
+
+.mail-review.is-open .mail-open {
+  display: flex;
+  position: relative;
+  inset: auto;
+  order: -1;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 48px;
+  padding: 0;
+  background: var(--ink);
+  color: #f7f3ec;
+}
+
+.mail-review.is-open .mail-open span {
+  background: transparent;
+  padding: 0;
+}
+
+.mail-review.is-open .mail-frame iframe {
+  pointer-events: auto;
+  flex: 1;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  box-shadow: none;
+}
+
+.mail-review.is-open .mail-frame.is-mobile iframe {
+  width: min(100%, 390px);
+  margin-inline: auto;
+}
+
 .mail-review {
   background: #d8d0c4;
 }
@@ -1027,14 +1108,100 @@ body[data-view="creatives"][data-empty="true"] .top-actions { display: none; }
   font-size: 12px;
 }
 
-@media (max-width: 640px) {
-  .app { padding: 14px; }
+@media (max-width: 760px) {
+  .app {
+    height: 100dvh;
+    min-height: 0;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    gap: 8px;
+  }
+
+  .brand { gap: 8px; }
+
+  .brand-mark {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    font-size: 16px;
+  }
+
+  .brand-name { font-size: 17px; }
+
+  .switch-stack { gap: 4px; }
+
+  .view-switch { gap: 6px; }
+
+  .view-switch button {
+    min-height: 34px;
+    padding: 4px 8px;
+    border-radius: 10px;
+    box-shadow: inset 0 0 0 1.5px var(--ink);
+  }
+
+  .switch-title { font-size: 14px; }
+
+  body[data-source-open="true"] .mail-source {
+    margin-left: 8px;
+    padding-left: 8px;
+    gap: 4px;
+  }
+
+  body[data-ad-open="true"] .ad-source {
+    margin-right: 8px;
+    padding-right: 8px;
+    gap: 4px;
+  }
+
+  .mail-source button,
+  .ad-source button {
+    min-height: 28px;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+
+  .stage-card {
+    height: auto;
+    flex: 1;
+    border-radius: 18px;
+  }
+
+  .mail-frame {
+    min-height: 0;
+    padding: 6px;
+  }
+
+  .mail-review:not(.is-open) .mail-open { inset: 6px; }
+
+  .mail-review .dock {
+    padding: 6px 8px 8px;
+    gap: 6px;
+  }
+
+  .chip {
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+
+  .actions { gap: 6px; }
+
+  .decide {
+    min-height: 36px;
+    padding: 6px 8px;
+    border-radius: 10px;
+    font-size: 14px;
+  }
+
+  .btn.save {
+    min-height: 40px;
+    font-size: 15px;
+    border-radius: 10px;
+  }
+
+  .mail-open { display: flex; }
+
+  .mail-review:not(.is-open) .mail-frame iframe { pointer-events: none; }
+
   .name-input { font-size: 24px; }
   .drop-zone { font-size: 28px; }
   .stat { min-width: 0; }
-  .decide {
-    font-size: 15px;
-    padding: 12px 8px;
-    min-height: 48px;
-  }
 }

@@ -12,6 +12,7 @@ const mailState = {
   noteError: false,
   focusNote: false,
   device: sessionStorage.getItem("andy-mail-device") || "desktop",
+  expanded: false,
   undo: null,
   ready: false,
 };
@@ -168,6 +169,17 @@ function mailDock(mail) {
     ${composer}`;
 }
 
+function setMailOpen(open) {
+  mailState.expanded = open;
+  const review = document.querySelector(".mail-review");
+  if (!review) return;
+  review.classList.toggle("is-open", open);
+  const button = review.querySelector(".mail-open");
+  const label = review.querySelector(".mail-open span");
+  if (label) label.textContent = open ? "Close" : "Open";
+  if (button) button.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
 function renderMailStage() {
   const stage = document.getElementById("stage");
   if (!mailState.ready) {
@@ -193,8 +205,10 @@ function renderMailStage() {
     return;
   }
   const device = mailState.device === "mobile" ? "mobile" : "desktop";
-  stage.innerHTML = `<div class="review mail-review">
+  const open = mailState.expanded;
+  stage.innerHTML = `<div class="review mail-review${open ? " is-open" : ""}">
       <div class="mail-frame${device === "mobile" ? " is-mobile" : ""}">
+        <button type="button" class="mail-open" data-action="expand-mail" aria-expanded="${open ? "true" : "false"}"><span>${open ? "Close" : "Open"}</span></button>
         <iframe sandbox="allow-popups allow-popups-to-escape-sandbox" title="${mailEsc(mail.subject)}" src="/api/mails/${mail.id}/html"></iframe>
       </div>
       <div class="dock">${deviceToggle()}${mailDock(mail)}</div>
@@ -398,6 +412,10 @@ function bindMail() {
       sessionStorage.setItem("andy-mail-device", mailState.device);
       renderMails();
     }
+    if (action === "expand-mail") {
+      setMailOpen(!mailState.expanded);
+      return;
+    }
     if (action === "undo") undoMail();
     if (action === "copy-address") {
       const address = mailState.status?.address || "mvp.preview@gmail.com";
@@ -429,6 +447,10 @@ function bindMail() {
   window.addEventListener("keydown", (event) => {
     if (!mailView()) return;
     const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName);
+    if (event.key === "Escape" && mailState.expanded) {
+      setMailOpen(false);
+      return;
+    }
     if (event.key === "Escape") {
       const mail = currentMail();
       mailState.composer = mail?.status === "changes";
