@@ -13,7 +13,6 @@ const mailState = {
   focusNote: false,
   device: sessionStorage.getItem("andy-mail-device") || "desktop",
   undo: null,
-  confirmDelete: false,
   ready: false,
 };
 
@@ -166,10 +165,7 @@ function mailDock(mail) {
       <button type="button" class="decide approve${mail.status === "approved" ? " is-on" : ""}" data-action="approve">${mail.status === "approved" ? "Approved" : "Approve"}</button>
       <button type="button" class="decide changes${mail.status === "changes" ? " is-on" : ""}" data-action="compose">Needs changes</button>
     </div>
-    ${composer}
-    ${mailState.confirmDelete
-      ? `<div class="confirm"><span>Remove?</span><button type="button" class="btn ink" data-action="delete-yes">Remove</button><button type="button" class="text-btn" data-action="delete-no">Cancel</button></div>`
-      : `<div class="tools"><button type="button" class="text-btn" data-action="delete-ask">Remove</button></div>`}`;
+    ${composer}`;
 }
 
 function renderMailStage() {
@@ -269,7 +265,6 @@ async function loadMails() {
 function selectMail(id) {
   mailState.selectedId = id;
   mailState.noteError = false;
-  mailState.confirmDelete = false;
   const mail = currentMail();
   if (mail && mailState.drafts[mail.id] == null) mailState.drafts[mail.id] = mail.note || "";
   mailState.composer = mail?.status === "changes";
@@ -326,22 +321,6 @@ async function saveMailChanges() {
   await saveMail({ status: "changes", note, channel: mail.channel });
   mailState.composer = true;
   mailToast("Saved.", true);
-  renderMails();
-}
-
-async function deleteMail() {
-  const mail = currentMail();
-  if (!mail) return;
-  const response = await fetch(`/api/mails/${mail.id}`, { method: "DELETE" });
-  if (!response.ok) {
-    mailToast("Could not remove.", false);
-    return;
-  }
-  mailState.mails = mailState.mails.filter((entry) => entry.id !== mail.id);
-  mailState.confirmDelete = false;
-  mailState.selectedId = null;
-  mailState.composer = false;
-  mailToast("Removed.", false);
   renderMails();
 }
 
@@ -412,15 +391,6 @@ function bindMail() {
     }
     if (action === "save-changes") saveMailChanges();
     if (action === "reopen") reopenMail();
-    if (action === "delete-ask") {
-      mailState.confirmDelete = true;
-      renderMails();
-    }
-    if (action === "delete-no") {
-      mailState.confirmDelete = false;
-      renderMails();
-    }
-    if (action === "delete-yes") deleteMail();
     if (action === "prev") moveMail(-1);
     if (action === "next") moveMail(1);
     if (action === "device") {

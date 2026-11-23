@@ -198,8 +198,9 @@ async function importMailbox(client, mailbox) {
   try {
     const since = new Date(Date.now() - 1000 * 60 * 60 * 24 * 45);
     const uids = await client.search({ since });
-    const list = Array.isArray(uids) ? uids.slice(-40) : [];
-    if (!list.length) return 0;
+    const list = Array.isArray(uids) ? uids : [];
+    const seen = new Set();
+    if (!list.length) return { added: 0, seen };
     let added = 0;
     const pending = [];
     for await (const message of client.fetch(list, { source: true, uid: true, labels: true }, { uid: true })) {
@@ -207,6 +208,7 @@ async function importMailbox(client, mailbox) {
       const id = mailId(parsed);
       const fromAddress = parsed.from?.value?.[0]?.address || "";
       if (isAccountMail(fromAddress)) continue;
+      seen.add(id);
       if (store.removed.includes(id) || hasLabel(message.labels, removedLabel)) {
         if (!store.removed.includes(id)) store.removed.push(id);
         continue;
@@ -238,7 +240,7 @@ async function importMailbox(client, mailbox) {
         console.error("Could not mail Andy about a new preview.");
       }
     }
-    return added;
+    return { added, seen };
   } finally {
     lock.release();
   }
@@ -305,6 +307,18 @@ async function removeMail(id) {
   }
 }
 
+function pruneMissing(seen) {
+  const windowMs = 1000 * 60 * 60 * 24 * 45;
+  for (const mail of [...store.mails]) {
+    const age = Date.now() - new Date(mail.date).getTime();
+    if (!Number.isFinite(age) || age > windowMs) continue;
+    if (seen.has(mail.id)) continue;
+    store.mails = store.mails.filter((entry) => entry.id !== mail.id);
+    const file = path.join(htmlDir, `${mail.id}.html`);
+    if (fs.existsSync(file)) fs.unlinkSync(file);
+  }
+}
+
 async function syncMailbox() {
   if (!configured) return { ok: false, error: "Inbox is not set up yet." };
   if (deleting) return { ok: true, added: 0 };
@@ -324,13 +338,19 @@ async function syncMailbox() {
       await client.connect();
       const boxes = await mailboxPaths(client);
       let added = 0;
+      const seen = new Set();
+      let inboxOk = false;
       for (const mailbox of boxes) {
         try {
-          added += await importMailbox(client, mailbox);
+          const result = await importMailbox(client, mailbox);
+          added += result.added;
+          for (const id of result.seen) seen.add(id);
+          if (mailbox === "INBOX") inboxOk = true;
         } catch (error) {
           if (mailbox === "INBOX") throw error;
         }
       }
+      if (inboxOk) pruneMissing(seen);
       store.lastSync = new Date().toISOString();
       store.error = null;
       writeState();
