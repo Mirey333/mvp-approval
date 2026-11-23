@@ -1002,9 +1002,12 @@ body[data-view="creatives"][data-empty="true"] .top-actions { display: none; }
 }
 
 .mail-open span {
-  background: rgba(28, 25, 22, 0.88);
+  background: #f5c400;
+  color: var(--ink);
   border-radius: 999px;
-  padding: 7px 14px;
+  padding: 8px 16px;
+  font-size: 15px;
+  box-shadow: 0 8px 20px rgba(28, 25, 22, 0.28);
 }
 
 .mail-review:not(.is-open) .mail-open {
@@ -1050,13 +1053,16 @@ body[data-view="creatives"][data-empty="true"] .top-actions { display: none; }
   width: 100%;
   height: 48px;
   padding: 0;
-  background: var(--ink);
-  color: #f7f3ec;
+  background: #f5c400;
+  color: var(--ink);
 }
 
 .mail-review.is-open .mail-open span {
   background: transparent;
+  color: var(--ink);
   padding: 0;
+  box-shadow: none;
+  font-size: 16px;
 }
 
 .mail-review.is-open .mail-frame iframe {
